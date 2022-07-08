@@ -1521,7 +1521,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi4_hardware = {
 	3 | 0x10, 2 | 0x10, 2 | 0x10, 
 	1, 2, 3,
 	0, 0, 0,
-	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT, 0, 0
+	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT, 0, 0,
+    LPSPI4_SR,
+    IRQ_LPSPI4
 };
 #else
 const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi4_hardware = {
@@ -1543,7 +1545,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi4_hardware = {
 	3 | 0x10,
 	1, 
 	0,
-	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT
+	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT,
+    LPSPI4_SR,
+    IRQ_LPSPI4
 };
 #endif
 
@@ -1573,7 +1577,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
 	7 | 0x10, 2 | 0x10, 0,
 	1, 1, 0,
 	0, 1, 0,
-	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT, &IOMUXC_LPSPI3_PCS0_SELECT_INPUT, 0
+	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT, &IOMUXC_LPSPI3_PCS0_SELECT_INPUT, 0,
+    LPSPI3_SR,
+    IRQ_LPSPI3
 };
 #else
 const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
@@ -1595,7 +1601,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
 	7 | 0x10,
 	1,
 	0, 
-	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT
+	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT,
+	LPSPI4_SR,
+	IRQ_LPSPI4
 };
 #endif
 SPIClass SPI1((uintptr_t)&IMXRT_LPSPI3_S, (uintptr_t)&SPIClass::spiclass_lpspi3_hardware);
@@ -1622,7 +1630,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
 	4 | 0x10, 0, 0,
 	1, 0, 0,
 	0, 0, 0,
-	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT, 0, 0
+	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT, 0, 0,
+	LPSPI1_SR,
+	IRQ_LPSPI1
 };
 #else
 const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
@@ -1644,7 +1654,9 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
 	4 | 0x10,
 	1,
 	0,
-	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT
+	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT,
+	LPSPI4_SR,
+	IRQ_LPSPI4
 };
 #endif
 SPIClass SPI2((uintptr_t)&IMXRT_LPSPI1_S, (uintptr_t)&SPIClass::spiclass_lpspi1_hardware);
@@ -1796,6 +1808,21 @@ void SPIClass::transfer32(const void * buf, void * retbuf, size_t count)
     port().TCR = tcr;    // restore back
 }
 
+void SPIClass::enableInterrupt(void (*isr)(void))
+{I
+  attachInterruptVector(hardware().irq, isr);
+  NVIC_ENABLE_IRQ(hardware().irq);
+}
+
+bool SPIClass::hasInterruptFlagSet(uint32_t flag)
+{
+    return hardware().isr & flag;
+}
+void SPIClass::clearInterruptFlag(uint32_t flag)
+{
+    hardware().isr = flag;
+}
+
 void SPIClass::send24(const void * buf, size_t count, uint8_t cs_pin)
 {
   // set framesize to 24 bit. Setting first to "not 31" clears all bits.
@@ -1808,7 +1835,6 @@ void SPIClass::send24(const void * buf, size_t count, uint8_t cs_pin)
   if (count == 0) return;
 
   uint32_t *p_write = (uint32_t*)buf;
-  size_t count_read = count;
 
   // Pass 1 keep it simple and don't try packing 8 bits into 16 yet..
   // Lets clear the reader queue

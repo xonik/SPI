@@ -1110,7 +1110,8 @@ public:
 		const uint8_t  		cs_mask[CNT_CS_PINS];
 		const uint8_t 		pcs_select_val[CNT_CS_PINS];
 		volatile uint32_t 	*pcs_select_input_register[CNT_CS_PINS];
-
+        volatile uint32_t   &isr;
+        IRQ_NUMBER_t        irq;
 	} SPI_Hardware_t;
 	static const SPI_Hardware_t spiclass_lpspi4_hardware;
 #if defined(__IMXRT1062__)
@@ -1286,6 +1287,9 @@ public:
 	void transfer(const void * buf, void * retbuf, size_t count);
 
     // Interrupt-on-finish version transferring 24bit blocks
+    void enableInterrupt(void (*isr)(void));
+    bool hasInterruptFlagSet(uint32_t flag);
+    void clearInterruptFlag(uint32_t flag);
     void send24(const void * buf, size_t count, uint8_t cs_pin);
 
 	// Asynch support (DMA )
