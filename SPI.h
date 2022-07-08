@@ -1285,6 +1285,9 @@ public:
 	void setTransferWriteFill(uint8_t ch ) {_transferWriteFill = ch;}
 	void transfer(const void * buf, void * retbuf, size_t count);
 
+    // Interrupt-on-finish version transferring 24bit blocks
+    void send24(const void * buf, size_t count, uint8_t cs_pin);
+
 	// Asynch support (DMA )
 #ifdef SPI_HAS_TRANSFER_ASYNC
 	bool transfer(const void *txBuffer, void *rxBuffer, size_t count,  EventResponderRef  event_responder);

@@ -1796,6 +1796,43 @@ void SPIClass::transfer32(const void * buf, void * retbuf, size_t count)
     port().TCR = tcr;    // restore back
 }
 
+void SPIClass::send24(const void * buf, size_t count, uint8_t cs_pin)
+{
+  // set framesize to 24 bit. Setting first to "not 31" clears all bits.
+  port().TCR = (port().TCR & ~(LPSPI_TCR_FRAMESZ(31))) | LPSPI_TCR_FRAMESZ(23);
+
+  // set Peripheral Chip Select
+  uint8_t csmask = setCS(cs_pin);
+  port().TCR = (port().TCR & ~(LPSPI_TCR_PCS(3))) | LPSPI_TCR_PCS(csmask-1);
+
+  if (count == 0) return;
+
+  uint32_t *p_write = (uint32_t*)buf;
+  size_t count_read = count;
+
+  // Pass 1 keep it simple and don't try packing 8 bits into 16 yet..
+  // Lets clear the reader queue
+  port().CR = LPSPI_CR_RRF | LPSPI_CR_MEN;  // clear the queue and make sure still enabled.
+
+  // Enable interrupts. Add the following:
+  // setup():
+  //   attachInterruptVector(IRQ_LPSPI4, &spi_isr4); // or similar for other ports
+  //   NVIC_ENABLE_IRQ(IRQ_LPSPI4);
+  // isr:
+  //   void spi_isr4(void) {
+  //     if(LPSPI4_SR & LPSPI_SR_TCF) {
+  //       LPSPI4_SR = LPSPI_SR_TCF;
+  //       // do stuff here
+  //     }
+  //   }
+  port().IER = (port().IER | LPSPI_IER_TCIE);
+
+  while (count > 0) {
+    // Push out the next byte;
+    port().TDR = p_write? *p_write++ : _transferWriteFill;
+    count--; // how many bytes left to output.
+  }
+}
 
 void SPIClass::end() {
 	// only do something if we have begun
