@@ -1080,6 +1080,9 @@ public:
 	static const uint8_t CNT_SCK_PINS = 1;
 	static const uint8_t CNT_CS_PINS = 1;
 #endif
+
+    volatile uint32_t cs_mux_revert[3] = {0,0,0};
+    int8_t curr_cs_pin_index = -1;
 	typedef struct {
 		volatile uint32_t &clock_gate_register;
 		const uint32_t clock_gate_mask;
@@ -1110,7 +1113,6 @@ public:
 		const uint8_t  		cs_mask[CNT_CS_PINS];
 		const uint8_t 		pcs_select_val[CNT_CS_PINS];
 		volatile uint32_t 	*pcs_select_input_register[CNT_CS_PINS];
-        volatile uint32_t   &isr;
         IRQ_NUMBER_t        irq;
 	} SPI_Hardware_t;
 	static const SPI_Hardware_t spiclass_lpspi4_hardware;

@@ -1396,15 +1396,26 @@ bool SPIClass::pinIsSCK(uint8_t pin)
 }
 
 // setCS() is not intended for use from normal Arduino programs/sketches.
+// If pin is not a cs_pin, the current cs pin will be disconnected (= no cs output)
 uint8_t SPIClass::setCS(uint8_t pin)
 {
 	for (unsigned int i = 0; i < sizeof(hardware().cs_pin); i++) {
 		if (pin == hardware().cs_pin[i]) {
+		    cs_mux_revert[i] = *portConfigRegister(pin);
 			*(portConfigRegister(pin)) = hardware().cs_mux[i];
 			if (hardware().pcs_select_input_register[i])
 				*hardware().pcs_select_input_register[i] = hardware().pcs_select_val[i];
+
+            curr_cs_pin_index = i;
+            port().TCR = (port().TCR & ~(LPSPI_TCR_PCS(3))) | LPSPI_TCR_PCS(hardware().cs_mask[i]-1);
 			return hardware().cs_mask[i];
 		}
+	}
+
+	// Disables current cs pin if we try to set a new pin that is not a cs pin
+	if(curr_cs_pin_index != -1) {
+	  *(portConfigRegister(pin)) = cs_mux_revert[curr_cs_pin_index];
+	  curr_cs_pin_index = -1;
 	}
 	return 0;
 }
@@ -1522,7 +1533,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi4_hardware = {
 	1, 2, 3,
 	0, 0, 0,
 	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT, 0, 0,
-    LPSPI4_SR,
     IRQ_LPSPI4
 };
 #else
@@ -1546,7 +1556,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi4_hardware = {
 	1, 
 	0,
 	&IOMUXC_LPSPI4_PCS0_SELECT_INPUT,
-    LPSPI4_SR,
     IRQ_LPSPI4
 };
 #endif
@@ -1578,7 +1587,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
 	1, 1, 0,
 	0, 1, 0,
 	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT, &IOMUXC_LPSPI3_PCS0_SELECT_INPUT, 0,
-    LPSPI3_SR,
     IRQ_LPSPI3
 };
 #else
@@ -1602,7 +1610,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
 	1,
 	0, 
 	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT,
-	LPSPI4_SR,
 	IRQ_LPSPI4
 };
 #endif
@@ -1631,7 +1638,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
 	1, 0, 0,
 	0, 0, 0,
 	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT, 0, 0,
-	LPSPI1_SR,
 	IRQ_LPSPI1
 };
 #else
@@ -1655,7 +1661,6 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
 	1,
 	0,
 	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT,
-	LPSPI4_SR,
 	IRQ_LPSPI4
 };
 #endif
@@ -1809,18 +1814,18 @@ void SPIClass::transfer32(const void * buf, void * retbuf, size_t count)
 }
 
 void SPIClass::enableInterrupt(void (*isr)(void))
-{I
+{
   attachInterruptVector(hardware().irq, isr);
   NVIC_ENABLE_IRQ(hardware().irq);
 }
 
 bool SPIClass::hasInterruptFlagSet(uint32_t flag)
 {
-    return hardware().isr & flag;
+    return port().SR & flag;
 }
 void SPIClass::clearInterruptFlag(uint32_t flag)
 {
-    hardware().isr = flag;
+    port().SR = flag;
 }
 
 void SPIClass::send24(const void * buf, size_t count, uint8_t cs_pin)
@@ -1829,8 +1834,8 @@ void SPIClass::send24(const void * buf, size_t count, uint8_t cs_pin)
   port().TCR = (port().TCR & ~(LPSPI_TCR_FRAMESZ(31))) | LPSPI_TCR_FRAMESZ(23);
 
   // set Peripheral Chip Select
-  uint8_t csmask = setCS(cs_pin);
-  port().TCR = (port().TCR & ~(LPSPI_TCR_PCS(3))) | LPSPI_TCR_PCS(csmask-1);
+  setCS(cs_pin);
+//  port().TCR = (port().TCR & ~(LPSPI_TCR_PCS(3))) | LPSPI_TCR_PCS(csmask-1);
 
   if (count == 0) return;
 
