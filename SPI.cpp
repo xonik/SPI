@@ -1610,7 +1610,7 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi3_hardware = {
 	1,
 	0, 
 	&IOMUXC_LPSPI3_PCS0_SELECT_INPUT,
-	IRQ_LPSPI4
+	IRQ_LPSPI3
 };
 #endif
 SPIClass SPI1((uintptr_t)&IMXRT_LPSPI3_S, (uintptr_t)&SPIClass::spiclass_lpspi3_hardware);
@@ -1661,7 +1661,7 @@ const SPIClass::SPI_Hardware_t  SPIClass::spiclass_lpspi1_hardware = {
 	1,
 	0,
 	&IOMUXC_LPSPI1_PCS0_SELECT_INPUT,
-	IRQ_LPSPI4
+	IRQ_LPSPI1
 };
 #endif
 SPIClass SPI2((uintptr_t)&IMXRT_LPSPI1_S, (uintptr_t)&SPIClass::spiclass_lpspi1_hardware);
